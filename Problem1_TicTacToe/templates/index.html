@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tic-Tac-Toe AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --panel: #111118;
+      --border: #1e1e2e;
+      --accent-x: #ff4d6d;
+      --accent-o: #4cc9f0;
+      --accent-draw: #f8961e;
+      --glow-x: 0 0 20px #ff4d6d88;
+      --glow-o: 0 0 20px #4cc9f088;
+      --text: #e0e0ef;
+      --muted: #555570;
+      --grid-line: #1e1e3a;
+      --cell-hover: #1a1a28;
+      --win-bg: #ff4d6d22;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background-image:
+        radial-gradient(ellipse at 20% 20%, #ff4d6d11 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, #4cc9f011 0%, transparent 50%);
+    }
+
+    header { text-align: center; margin-bottom: 28px; }
+
+    header h1 {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--accent-x), var(--accent-o));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p { color: var(--muted); font-size: 0.78rem; margin-top: 6px; letter-spacing: 0.1em; }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr 220px;
+      gap: 20px;
+      width: 100%;
+      max-width: 860px;
+      align-items: start;
+    }
+
+    .side-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 16px;
+    }
+
+    .side-panel h3 {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .algo-btn {
+      display: block; width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: left;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .algo-btn:hover { border-color: var(--accent-o); color: var(--accent-o); }
+    .algo-btn.active {
+      border-color: var(--accent-o);
+      background: #4cc9f011;
+      color: var(--accent-o);
+      box-shadow: var(--glow-o);
+    }
+
+    .symbol-pick { display: flex; gap: 8px; margin-top: 6px; }
+    .sym-btn {
+      flex: 1; padding: 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .sym-btn.x { color: var(--accent-x); }
+    .sym-btn.o { color: var(--accent-o); }
+    .sym-btn.active.x { border-color: var(--accent-x); background: #ff4d6d11; box-shadow: var(--glow-x); }
+    .sym-btn.active.o { border-color: var(--accent-o); background: #4cc9f011; box-shadow: var(--glow-o); }
+
+    .label { font-size: 0.7rem; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.1em; }
+
+    .center-col { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+    .status-bar {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.85rem; font-weight: 700;
+      letter-spacing: 0.12em; text-align: center;
+      min-height: 28px; transition: color 0.3s;
+    }
+    .status-bar.x-turn { color: var(--accent-x); }
+    .status-bar.o-turn { color: var(--accent-o); }
+    .status-bar.draw   { color: var(--accent-draw); }
+
+    .board-wrap { position: relative; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px; padding: 6px;
+      background: var(--grid-line);
+      border-radius: 14px;
+      box-shadow: 0 0 40px #00000080;
+    }
+
+    .cell {
+      width: clamp(90px, 18vw, 130px);
+      height: clamp(90px, 18vw, 130px);
+      background: var(--panel);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.15s;
+      position: relative; overflow: hidden;
+    }
+    .cell:hover:not(.filled) { background: var(--cell-hover); }
+    .cell.filled { cursor: default; }
+    .cell.win-cell { background: var(--win-bg); }
+    .cell svg { width: 60%; height: 60%; }
+
+    .mark-x line {
+      stroke: var(--accent-x); stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 60; stroke-dashoffset: 60;
+      animation: draw-line 0.25s ease forwards;
+    }
+    .mark-x line:nth-child(2) { animation-delay: 0.1s; }
+
+    .mark-o circle {
+      stroke: var(--accent-o); stroke-width: 6; fill: none;
+      stroke-dasharray: 200; stroke-dashoffset: 200;
+      animation: draw-circle 0.3s ease forwards;
+    }
+
+    @keyframes draw-line   { to { stroke-dashoffset: 0; } }
+    @keyframes draw-circle { to { stroke-dashoffset: 0; } }
+
+    .win-line-svg {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; pointer-events: none;
+    }
+    .win-line-path {
+      stroke: #ffffff33; stroke-width: 6;
+      stroke-linecap: round; fill: none;
+      stroke-dasharray: 600; stroke-dashoffset: 600;
+      animation: draw-win 0.5s ease forwards;
+    }
+    @keyframes draw-win { to { stroke-dashoffset: 0; } }
+
+    .btn-row { display: flex; gap: 10px; }
+
+    .btn {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem; letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 10px 20px; border-radius: 8px;
+      border: 1px solid; cursor: pointer;
+      transition: all 0.2s; font-weight: 700;
+    }
+    .btn-reset  { background: transparent; border-color: var(--accent-x); color: var(--accent-x); }
+    .btn-reset:hover { background: #ff4d6d22; box-shadow: var(--glow-x); }
+    .btn-compare { background: transparent; border-color: var(--muted); color: var(--muted); }
+    .btn-compare:hover { border-color: var(--accent-o); color: var(--accent-o); }
+
+    .stat-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 0.78rem; }
+    .stat-label { color: var(--muted); font-size: 0.7rem; }
+    .stat-val { font-family: 'Orbitron', monospace; font-weight: 700; font-size: 0.9rem; color: var(--accent-o); }
+
+    .algo-compare-box { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+
+    .compare-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .compare-cell {
+      background: #0d0d18; border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 8px; text-align: center;
+    }
+    .compare-cell .c-algo { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 6px; }
+    .compare-cell .c-val { font-family: 'Orbitron', monospace; font-size: 0.85rem; font-weight: 700; }
+    .compare-cell.best .c-val { color: #7bed9f; }
+    .compare-cell .c-val.x-col { color: var(--accent-x); }
+    .compare-cell .c-val.o-col { color: var(--accent-o); }
+
+    .score-board { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .score-cell { background: #0d0d18; border: 1px solid var(--border); border-radius: 8px; padding: 10px 8px; text-align: center; }
+    .score-cell .sc-label { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; }
+    .score-cell .sc-val { font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 900; margin-top: 4px; }
+    .score-cell.x-score .sc-val    { color: var(--accent-x); }
+    .score-cell.draw-score .sc-val { color: var(--accent-draw); }
+    .score-cell.o-score .sc-val    { color: var(--accent-o); }
+
+    .thinking {
+      display: none; font-size: 0.7rem; color: var(--muted);
+      letter-spacing: 0.15em;
+      animation: blink 0.8s step-end infinite;
+      text-align: center;
+    }
+    .thinking.visible { display: block; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    @media (max-width: 720px) {
+      .main-layout { grid-template-columns: 1fr; }
+      .side-panel { order: 2; }
+      .center-col { order: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ Tic-Tac-Toe AI ⬡</h1>
+  <p>Minimax vs Alpha-Beta Pruning — Zero Defeat AI</p>
+</header>
+
+<div class="main-layout">
+
+  <!-- LEFT: Settings -->
+  <div class="side-panel">
+    <h3>Algorithm</h3>
+    <button class="algo-btn" id="btn-ab" onclick="setAlgo('alpha_beta')">α-β Alpha-Beta</button>
+    <button class="algo-btn" id="btn-mm" onclick="setAlgo('minimax')">Minimax</button>
+
+    <h3 style="margin-top:20px;">You Play As</h3>
+    <div class="symbol-pick">
+      <button class="sym-btn x active" id="sym-x" onclick="setSymbol('X')">X</button>
+      <button class="sym-btn o"        id="sym-o" onclick="setSymbol('O')">O</button>
+    </div>
+
+    <h3 style="margin-top:20px;">Score</h3>
+    <div class="score-board">
+      <div class="score-cell x-score">
+        <div class="sc-label">YOU</div>
+        <div class="sc-val" id="score-human">0</div>
+      </div>
+      <div class="score-cell draw-score">
+        <div class="sc-label">DRAW</div>
+        <div class="sc-val" id="score-draw">0</div>
+      </div>
+      <div class="score-cell o-score">
+        <div class="sc-label">AI</div>
+        <div class="sc-val" id="score-ai">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: Board -->
+  <div class="center-col">
+    <div class="status-bar x-turn" id="status">YOUR TURN</div>
+
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+      <svg class="win-line-svg" id="win-svg" viewBox="0 0 408 408">
+        <path class="win-line-path" id="win-path" d=""/>
+      </svg>
+    </div>
+
+    <p class="thinking" id="thinking">AI THINKING…</p>
+
+    <div class="btn-row">
+      <button class="btn btn-reset"   onclick="resetGame()">↺ RESET</button>
+      <button class="btn btn-compare" onclick="runCompare()">⚡ COMPARE</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Stats -->
+  <div class="side-panel">
+    <h3>Last AI Move</h3>
+    <div class="stat-row">
+      <span class="stat-label">Algorithm</span>
+      <span class="stat-val" id="stat-algo">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Nodes explored</span>
+      <span class="stat-val" id="stat-nodes">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Time taken</span>
+      <span class="stat-val" id="stat-time">—</span>
+    </div>
+
+    <div class="algo-compare-box">
+      <h3>Algorithm Comparison</h3>
+      <p class="label" style="margin-bottom:10px;">Nodes explored on current board</p>
+      <div class="compare-row">
+        <div class="compare-cell" id="cmp-mm">
+          <div class="c-algo">MINIMAX</div>
+          <div class="c-val x-col" id="cmp-mm-nodes">—</div>
+          <div class="c-algo" style="margin-top:4px;" id="cmp-mm-time">—</div>
+        </div>
+        <div class="compare-cell" id="cmp-ab">
+          <div class="c-algo">ALPHA-BETA</div>
+          <div class="c-val o-col" id="cmp-ab-nodes">—</div>
+          <div class="c-algo" style="margin-top:4px;" id="cmp-ab-time">—</div>
+        </div>
+      </div>
+      <div id="cmp-verdict" style="font-size:0.7rem; color:var(--muted); text-align:center; min-height:20px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let board       = Array(9).fill('');
+let humanPlayer = 'X';
+let aiPlayer    = 'O';
+let algorithm   = 'alpha_beta';
+let gameOver    = false;
+let scores      = { human: 0, ai: 0, draw: 0 };
+
+function init() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.idx = i;
+    cell.addEventListener('click', () => humanMove(i));
+    boardEl.appendChild(cell);
+  }
+  setAlgo('alpha_beta');
+  updateStatus();
+}
+
+function updateStatus() {
+  setStatus('YOUR TURN', humanPlayer === 'X' ? 'x-turn' : 'o-turn');
+}
+
+function setAlgo(a) {
+  algorithm = a;
+  document.getElementById('btn-ab').classList.toggle('active', a === 'alpha_beta');
+  document.getElementById('btn-mm').classList.toggle('active', a === 'minimax');
+}
+
+function setSymbol(s) {
+  humanPlayer = s;
+  aiPlayer    = s === 'X' ? 'O' : 'X';
+  document.getElementById('sym-x').classList.toggle('active', s === 'X');
+  document.getElementById('sym-o').classList.toggle('active', s === 'O');
+  resetGame();
+}
+
+async function humanMove(idx) {
+  if (gameOver || board[idx] !== '') return;
+  board[idx] = humanPlayer;
+  renderCell(idx, humanPlayer);
+  const { winner, winLine, draw } = checkLocal();
+  if (winner || draw) { endGame(winner, winLine, draw); return; }
+  setStatus('AI THINKING…', aiPlayer === 'X' ? 'x-turn' : 'o-turn');
+  document.getElementById('thinking').classList.add('visible');
+  disableBoard();
+  await aiMove();
+}
+
+async function aiMove() {
+  const resp = await fetch('/ai_move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ board, ai_player: aiPlayer, human_player: humanPlayer, algorithm })
+  });
+  const data = await resp.json();
+  document.getElementById('thinking').classList.remove('visible');
+
+  if (data.move >= 0) {
+    board[data.move] = aiPlayer;
+    renderCell(data.move, aiPlayer);
+  }
+
+  document.getElementById('stat-algo').textContent  = algorithm === 'alpha_beta' ? 'α-β' : 'MM';
+  document.getElementById('stat-nodes').textContent = data.nodes.toLocaleString();
+  document.getElementById('stat-time').textContent  = data.time_ms + ' ms';
+
+  if (data.winner || data.draw) {
+    endGame(data.winner, data.win_line, data.draw);
+  } else {
+    enableBoard();
+    setStatus('YOUR TURN', humanPlayer === 'X' ? 'x-turn' : 'o-turn');
+  }
+}
+
+function endGame(winner, winLine, draw) {
+  gameOver = true;
+  if (draw) {
+    setStatus('DRAW!', 'draw');
+    scores.draw++;
+    document.getElementById('score-draw').textContent = scores.draw;
+  } else if (winner === humanPlayer) {
+    setStatus('YOU WIN! 🎉', humanPlayer === 'X' ? 'x-turn' : 'o-turn');
+    scores.human++;
+    document.getElementById('score-human').textContent = scores.human;
+    highlightWin(winLine);
+  } else {
+    setStatus('AI WINS', aiPlayer === 'X' ? 'x-turn' : 'o-turn');
+    scores.ai++;
+    document.getElementById('score-ai').textContent = scores.ai;
+    highlightWin(winLine);
+  }
+}
+
+function resetGame() {
+  board    = Array(9).fill('');
+  gameOver = false;
+  document.getElementById('thinking').classList.remove('visible');
+  document.getElementById('win-path').setAttribute('d', '');
+  document.querySelectorAll('.cell').forEach(c => {
+    c.innerHTML = '';
+    c.className = 'cell';
+    c.style.pointerEvents = '';
+  });
+  updateStatus();
+  if (humanPlayer === 'O') {
+    setTimeout(() => aiMove(), 300);
+    disableBoard();
+  }
+}
+
+function renderCell(idx, player) {
+  const cell = document.querySelector(`.cell[data-idx="${idx}"]`);
+  cell.classList.add('filled');
+  if (player === 'X') {
+    cell.innerHTML = `<svg class="mark-x" viewBox="0 0 60 60">
+      <line x1="10" y1="10" x2="50" y2="50"/>
+      <line x1="50" y1="10" x2="10" y2="50"/>
+    </svg>`;
+  } else {
+    cell.innerHTML = `<svg class="mark-o" viewBox="0 0 60 60">
+      <circle cx="30" cy="30" r="22"/>
+    </svg>`;
+  }
+}
+
+function highlightWin(winLine) {
+  if (!winLine) return;
+  winLine.forEach(i => document.querySelector(`.cell[data-idx="${i}"]`).classList.add('win-cell'));
+  const coords = getWinLineCoords(winLine);
+  if (coords) {
+    const p = document.getElementById('win-path');
+    p.setAttribute('d', `M ${coords[0]} L ${coords[1]}`);
+    p.style.animation = 'none';
+    p.getBoundingClientRect();
+    p.style.animation = '';
+  }
+}
+
+function getWinLineCoords(line) {
+  const cellSize = 130, gap = 6, pad = 6;
+  const center = idx => [
+    pad + (idx % 3) * (cellSize + gap) + cellSize / 2,
+    pad + Math.floor(idx / 3) * (cellSize + gap) + cellSize / 2
+  ];
+  const [ax, ay] = center(line[0]);
+  const [bx, by] = center(line[2]);
+  return [`${ax} ${ay}`, `${bx} ${by}`];
+}
+
+function setStatus(txt, cls) {
+  const el = document.getElementById('status');
+  el.textContent = txt;
+  el.className   = 'status-bar ' + cls;
+}
+
+function disableBoard() {
+  document.querySelectorAll('.cell').forEach(c => c.style.pointerEvents = 'none');
+}
+function enableBoard() {
+  document.querySelectorAll('.cell').forEach(c => {
+    if (!c.classList.contains('filled')) c.style.pointerEvents = '';
+  });
+}
+
+function checkLocal() {
+  const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const line of wins) {
+    const [a,b,c] = line;
+    if (board[a] && board[a] === board[b] && board[b] === board[c])
+      return { winner: board[a], winLine: line, draw: false };
+  }
+  return { winner: null, winLine: null, draw: board.every(x => x !== '') };
+}
+
+async function runCompare() {
+  const resp = await fetch('/compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ board, ai_player: aiPlayer, human_player: humanPlayer })
+  });
+  const d = await resp.json();
+  const mm = d.minimax, ab = d.alpha_beta;
+
+  document.getElementById('cmp-mm-nodes').textContent = mm.nodes.toLocaleString();
+  document.getElementById('cmp-mm-time').textContent  = mm.time_ms + ' ms';
+  document.getElementById('cmp-ab-nodes').textContent = ab.nodes.toLocaleString();
+  document.getElementById('cmp-ab-time').textContent  = ab.time_ms + ' ms';
+
+  const pruned = mm.nodes - ab.nodes;
+  const pct    = mm.nodes > 0 ? Math.round(pruned / mm.nodes * 100) : 0;
+  document.getElementById('cmp-verdict').textContent =
+    `α-β pruned ${pct}% of nodes (${pruned.toLocaleString()} states saved)`;
+
+  document.getElementById('cmp-ab').classList.toggle('best', ab.nodes <= mm.nodes);
+  document.getElementById('cmp-mm').classList.toggle('best', mm.nodes < ab.nodes);
+}
+
+init();
+</script>
+</body>
+</html>
