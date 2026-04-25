@@ -24,6 +24,7 @@ Problem1_TicTacToe/
     |-- index.html
 
 ### Algorithms Used
+
 1. Minimax
    - Explores every possible game state recursively
    - Scores: +10 (AI wins), -10 (Human wins), 0 (Draw)
@@ -57,8 +58,8 @@ Live Demo: https://sudoku-csp-solver.onrender.com/
 
 ### Problem Description
 Interactive Sudoku game where the user solves puzzles validated by
-a CSP (Constraint Satisfaction Problem) engine with backtracking
-and MRV heuristic. Displays You Won or Try Again based on result.
+a CSP engine with backtracking and MRV heuristic.
+Displays You Won or Try Again based on result.
 
 ### Folder Structure
 Problem6_Sudoku/
@@ -88,4 +89,3 @@ Problem6_Sudoku/
 ## Author
 - Name: SRI BALA PRIYAN S
 - Register Number: RA2411026050332
-- dept./section: IInd AIML-E
