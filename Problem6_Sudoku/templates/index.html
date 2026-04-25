@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sudoku CSP Solver</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --paper: #fdfaf4;
+      --ink: #1a1410;
+      --muted: #8a7f6e;
+      --accent: #c0392b;
+      --accent2: #2c7a4b;
+      --accent3: #1a5276;
+      --border: #d4c9b0;
+      --border-bold: #8a7f6e;
+      --given-bg: #ede8de;
+      --user-color: #1a5276;
+      --error-color: #c0392b;
+      --hint-color: #2c7a4b;
+      --selected: #fef9c3;
+      --same-num: #e8f4fd;
+      --shadow: 0 4px 24px rgba(26,20,16,0.10);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px;
+      background-image: repeating-linear-gradient(
+        0deg, transparent, transparent 27px, #d4c9b022 28px);
+    }
+
+    header { text-align: center; margin-bottom: 28px; }
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 900;
+      color: var(--ink);
+    }
+    header h1 span { color: var(--accent); }
+    header p {
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-top: 6px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .layout {
+      display: flex;
+      gap: 28px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 22px 20px;
+      width: 200px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .diff-btn {
+      display: block; width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      padding: 9px 12px;
+      border-radius: 2px;
+      cursor: pointer;
+      text-align: left;
+      margin-bottom: 6px;
+      transition: all 0.15s;
+    }
+    .diff-btn:hover { border-color: var(--ink); color: var(--ink); }
+    .diff-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+    .action-btn {
+      display: block; width: 100%;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      padding: 10px 12px;
+      border-radius: 2px;
+      border: 1px solid;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .btn-check { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+    .btn-check:hover { opacity: 0.85; }
+    .btn-solve { background: transparent; border-color: var(--accent3); color: var(--accent3); }
+    .btn-solve:hover { background: var(--accent3); color: #fff; }
+    .btn-hint  { background: transparent; border-color: var(--accent); color: var(--accent); }
+    .btn-hint:hover  { background: var(--accent); color: #fff; }
+    .btn-clear { background: transparent; border-color: var(--border-bold); color: var(--muted); }
+    .btn-clear:hover { border-color: var(--ink); color: var(--ink); }
+
+    .status-box {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 2px;
+      font-size: 0.72rem;
+      line-height: 1.5;
+      min-height: 50px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-style: italic;
+    }
+    .status-box.won   { background: #d5f0e0; border-color: var(--accent2); color: var(--accent2); font-style: normal; }
+    .status-box.wrong { background: #fde8e8; border-color: var(--accent);  color: var(--accent);  font-style: normal; }
+    .status-box.info  { background: #e8f4fd; border-color: var(--accent3); color: var(--accent3); font-style: normal; }
+
+    .score-row { display: flex; justify-content: space-between; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .score-item { text-align: center; }
+    .score-item .sv { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; line-height: 1; }
+    .score-item .sl { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+    .sv.wins  { color: var(--accent2); }
+    .sv.tries { color: var(--accent); }
+
+    .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+    .sudoku-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      border: 3px solid var(--ink);
+      border-radius: 2px;
+      box-shadow: var(--shadow);
+      background: var(--border-bold);
+      gap: 1px;
+    }
+
+    .cell {
+      width: clamp(42px, 7vw, 58px);
+      height: clamp(42px, 7vw, 58px);
+      background: var(--paper);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.1s;
+      user-select: none;
+    }
+
+    .cell[data-col="2"], .cell[data-col="5"] { border-right: 2px solid var(--ink); }
+    .cell[data-row="2"], .cell[data-row="5"] { border-bottom: 2px solid var(--ink); }
+
+    .cell.given      { background: var(--given-bg); color: var(--ink); cursor: default; }
+    .cell.selected   { background: var(--selected) !important; }
+    .cell.same-num   { background: var(--same-num); }
+    .cell.error      { color: var(--error-color) !important; background: #fde8e8; }
+    .cell.hint-cell  { color: var(--hint-color) !important; }
+    .cell.user-input { color: var(--user-color); }
+    .cell:not(.given):hover { background: #fef3cd; }
+
+    .numpad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .num-btn {
+      width: clamp(38px, 6vw, 50px);
+      height: clamp(38px, 6vw, 50px);
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--ink);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    }
+    .num-btn:hover { background: var(--ink); color: var(--paper); }
+    .num-btn.erase { font-size: 0.75rem; color: var(--accent); border-color: var(--accent); }
+    .num-btn.erase:hover { background: var(--accent); color: #fff; }
+
+    .timer { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); letter-spacing: 0.1em; }
+
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(26,20,16,0.7);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    .overlay.visible { display: flex; }
+    .overlay-box {
+      background: var(--paper); border: 3px solid var(--ink);
+      border-radius: 4px; padding: 40px; text-align: center; max-width: 360px;
+    }
+    .overlay-box h2 { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 900; margin-bottom: 10px; }
+    .overlay-box h2.won-title  { color: var(--accent2); }
+    .overlay-box h2.lose-title { color: var(--accent); }
+    .overlay-box p { color: var(--muted); font-size: 0.8rem; margin-bottom: 24px; }
+    .overlay-btn {
+      background: var(--ink); color: var(--paper);
+      border: none; border-radius: 2px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem; letter-spacing: 0.1em;
+      padding: 12px 28px; cursor: pointer;
+    }
+    .overlay-btn:hover { opacity: 0.8; }
+
+    @media (max-width: 600px) {
+      .layout { flex-direction: column; align-items: center; }
+      .panel { width: 100%; max-width: 380px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Su<span>doku</span></h1>
+  <p>Constraint Satisfaction Problem Solver</p>
+</header>
+
+<div class="layout">
+
+  <div class="panel">
+    <h3>Difficulty</h3>
+    <button class="diff-btn active" onclick="newGame('easy', this)">Easy</button>
+    <button class="diff-btn" onclick="newGame('medium', this)">Medium</button>
+    <button class="diff-btn" onclick="newGame('hard', this)">Hard</button>
+
+    <h3 style="margin-top:20px;">Actions</h3>
+    <button class="action-btn btn-check" onclick="checkSolution()">Check Solution</button>
+    <button class="action-btn btn-hint"  onclick="getHint()">Get Hint</button>
+    <button class="action-btn btn-solve" onclick="autoSolve()">Auto Solve (CSP)</button>
+    <button class="action-btn btn-clear" onclick="clearUserInput()">Clear Input</button>
+
+    <div class="status-box" id="status">Select a cell and enter a number to begin.</div>
+
+    <div class="score-row">
+      <div class="score-item">
+        <div class="sv wins" id="score-wins">0</div>
+        <div class="sl">Wins</div>
+      </div>
+      <div class="score-item">
+        <div class="sv tries" id="score-tries">0</div>
+        <div class="sl">Tries</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="timer" id="timer">00:00</div>
+    <div class="sudoku-grid" id="grid"></div>
+    <div class="numpad" id="numpad"></div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <h2 id="overlay-title">You Won!</h2>
+    <p id="overlay-msg">Congratulations!</p>
+    <button class="overlay-btn" onclick="closeOverlay()">Play Again</button>
+  </div>
+</div>
+
+<script>
+let puzzle = [], solution = [], userBoard = [];
+let selected = null;
+let scores = { wins: 0, tries: 0 };
+let timerInterval = null, seconds = 0;
+let difficulty = 'easy';
+
+async function newGame(diff, btn) {
+  difficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  setStatus('Generating puzzle...', 'info');
+  const resp = await fetch('/new_puzzle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ difficulty: diff })
+  });
+  const data = await resp.json();
+  puzzle    = data.puzzle;
+  solution  = data.solution;
+  userBoard = puzzle.map(row => [...row]);
+  selected  = null;
+  renderGrid();
+  buildNumpad();
+  setStatus('Select a cell and enter a number.', '');
+  startTimer();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      if (puzzle[r][c] !== 0) {
+        cell.classList.add('given');
+        cell.textContent = puzzle[r][c];
+      } else if (userBoard[r][c] !== 0) {
+        cell.textContent = userBoard[r][c];
+        cell.classList.add('user-input');
+      }
+      cell.addEventListener('click', () => selectCell(r, c));
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function buildNumpad() {
+  const pad = document.getElementById('numpad');
+  pad.innerHTML = '';
+  for (let n = 1; n <= 9; n++) {
+    const btn = document.createElement('button');
+    btn.className = 'num-btn';
+    btn.textContent = n;
+    btn.addEventListener('click', () => enterNumber(n));
+    pad.appendChild(btn);
+  }
+  const erase = document.createElement('button');
+  erase.className = 'num-btn erase';
+  erase.textContent = 'DEL';
+  erase.addEventListener('click', () => enterNumber(0));
+  pad.appendChild(erase);
+}
+
+function selectCell(row, col) {
+  selected = { row, col };
+  highlightCells(row, col);
+}
+
+function highlightCells(row, col) {
+  const val = userBoard[row][col];
+  document.querySelectorAll('.cell').forEach(cell => {
+    const r = parseInt(cell.dataset.row);
+    const c = parseInt(cell.dataset.col);
+    cell.classList.remove('selected', 'same-num');
+    if (r === row && c === col) {
+      cell.classList.add('selected');
+    } else if (val !== 0 && userBoard[r][c] === val) {
+      cell.classList.add('same-num');
+    }
+  });
+}
+
+function enterNumber(num) {
+  if (!selected) return;
+  const { row, col } = selected;
+  if (puzzle[row][col] !== 0) return;
+  userBoard[row][col] = num;
+  const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+  cell.textContent = num === 0 ? '' : num;
+  cell.classList.remove('error', 'hint-cell', 'user-input');
+  if (num !== 0) cell.classList.add('user-input');
+  highlightCells(row, col);
+}
+
+document.addEventListener('keydown', e => {
+  if (!selected) return;
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= 9) enterNumber(n);
+  if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') enterNumber(0);
+  const moves = { ArrowUp:[-1,0], ArrowDown:[1,0], ArrowLeft:[0,-1], ArrowRight:[0,1] };
+  if (moves[e.key]) {
+    const [dr, dc] = moves[e.key];
+    const nr = Math.max(0, Math.min(8, selected.row + dr));
+    const nc = Math.max(0, Math.min(8, selected.col + dc));
+    selectCell(nr, nc);
+  }
+});
+
+async function checkSolution() {
+  scores.tries++;
+  document.getElementById('score-tries').textContent = scores.tries;
+  const resp = await fetch('/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_board: userBoard, solution, original: puzzle })
+  });
+  const data = await resp.json();
+  if (data.status === 'won') {
+    scores.wins++;
+    document.getElementById('score-wins').textContent = scores.wins;
+    stopTimer();
+    showOverlay('You Won!', `Solved in ${formatTime(seconds)}`, true);
+    setStatus('You Won! Congratulations!', 'won');
+  } else if (data.status === 'wrong') {
+    setStatus(data.message, 'wrong');
+    highlightErrors();
+    showOverlay('Try Again!', data.message, false);
+  } else {
+    setStatus(data.message, 'info');
+  }
+}
+
+function highlightErrors() {
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (puzzle[r][c] === 0 && userBoard[r][c] !== 0 && userBoard[r][c] !== solution[r][c]) {
+        document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`).classList.add('error');
+      }
+    }
+  }
+}
+
+async function getHint() {
+  const resp = await fetch('/hint', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_board: userBoard, solution, original: puzzle })
+  });
+  const data = await resp.json();
+  if (data.hint) {
+    const { row, col, value } = data.hint;
+    userBoard[row][col] = value;
+    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    cell.textContent = value;
+    cell.classList.remove('error', 'user-input');
+    cell.classList.add('hint-cell');
+    selectCell(row, col);
+    setStatus(`Hint: placed ${value} at row ${row+1}, col ${col+1}`, 'info');
+  } else {
+    setStatus('No hints needed — puzzle is complete!', 'info');
+  }
+}
+
+async function autoSolve() {
+  const resp = await fetch('/solve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ board: puzzle.map(r => [...r]) })
+  });
+  const data = await resp.json();
+  if (data.solved) {
+    userBoard = data.board;
+    renderGrid();
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (puzzle[r][c] === 0) {
+          document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`).classList.add('hint-cell');
+        }
+      }
+    }
+    stopTimer();
+    setStatus('CSP solved using Backtracking + MRV heuristic!', 'info');
+  }
+}
+
+function clearUserInput() {
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (puzzle[r][c] === 0) userBoard[r][c] = 0;
+  renderGrid();
+  setStatus('Board cleared. Start solving!', '');
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status-box ' + (type || '');
+}
+
+function showOverlay(title, msg, won) {
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-title').className = won ? 'won-title' : 'lose-title';
+  document.getElementById('overlay-msg').textContent = msg;
+  document.getElementById('overlay').classList.add('visible');
+}
+
+function closeOverlay() {
+  document.getElementById('overlay').classList.remove('visible');
+  newGame(difficulty, null);
+}
+
+function startTimer() {
+  stopTimer();
+  seconds = 0;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => { seconds++; updateTimerDisplay(); }, 1000);
+}
+
+function stopTimer()  { clearInterval(timerInterval); }
+function formatTime(s) {
+  return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+}
+function updateTimerDisplay() {
+  document.getElementById('timer').textContent = formatTime(seconds);
+}
+
+newGame('easy', document.querySelector('.diff-btn'));
+</script>
+</body>
+</html>
