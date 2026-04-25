@@ -51,8 +51,8 @@ AI_ProblemSolving_-RA2411026050332-/
 Open: http://localhost:5000
 
 ### Live Demo (no installation needed)
-https://ai-problemsolving-ra2411026050332.onrender.com/
-
+problem1: https://ai-problemsolving-ra2411026050332.onrender.com/
+problem6: https://sudoku-csp-solver.onrender.com/
 ---
 
 ## Sample Output
