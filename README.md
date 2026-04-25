@@ -29,3 +29,7 @@ Time       : 0.31 ms
 Minimax    : 549,945 nodes | 312.4 ms
 Alpha-Beta :  18,297 nodes |  10.8 ms
 α-β pruned 97% of nodes
+
+## Author
+- Name: SRI BALA PRIYAN S
+- Register Number: RA2411026050332
