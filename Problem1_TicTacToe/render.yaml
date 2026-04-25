@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: tic-tac-toe-ai
+    runtime: python
+    rootDir: Problem1_TicTacToe
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
